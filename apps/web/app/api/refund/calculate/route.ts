@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateRefund } from "@/app/lib/refund-engine";
+import { getRateLimiter } from "@/app/lib/rate-limiter";
+import { hashPnr } from "@/app/lib/crypto";
+import { logger } from "@/app/lib/logger";
 
 // Re-validate input independently — never trust the caller (Hard Rule)
 const RefundCalcSchema = z.object({
@@ -12,7 +15,7 @@ const RefundCalcSchema = z.object({
       source: z.string(),
       destination: z.string(),
       journeyDate: z.string(),
-      departureTime: z.string()
+      departureTime: z.string(),
     }),
     booking: z.object({
       fare: z.number().positive(),
@@ -20,46 +23,92 @@ const RefundCalcSchema = z.object({
       quota: z.string(),
       ticketType: z.enum(["GENERAL", "TATKAL", "PREMIUM_TATKAL"]),
       bookingStatus: z.enum(["CONFIRMED", "RAC", "WAITLISTED"]),
-      chartStatus: z.enum(["NOT_PREPARED", "PREPARED"])
+      chartStatus: z.enum(["NOT_PREPARED", "PREPARED"]),
     }),
     passengers: z
       .array(
         z.object({
           bookingStatus: z.string(),
-          currentStatus: z.string()
+          currentStatus: z.string(),
         })
       )
       .min(1),
-    metadata: z.record(z.string(), z.unknown()).optional()
+    metadata: z.record(z.string(), z.unknown()).optional(),
   }),
-  calculationTime: z.string().optional()
+  calculationTime: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
+  const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
+  const reqLogger = logger.withRequestId(requestId);
+
+  // Rate limiting
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "127.0.0.1";
+
+  const rateLimiter = getRateLimiter();
+  const rateLimitResult = await rateLimiter.check(`calc:${clientIp}`);
+
+  if (!rateLimitResult.allowed) {
+    reqLogger.warn("Rate limit exceeded for calculate", { clientIp });
+    const res = NextResponse.json(
+      { error: "Too many requests. Please wait a moment before trying again." },
+      { status: 429 }
+    );
+    res.headers.set("x-request-id", requestId);
+    res.headers.set("Retry-After", Math.ceil(rateLimitResult.resetMs / 1000).toString());
+    return res;
+  }
+
   try {
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Malformed request body. JSON payload expected." },
+        { status: 400, headers: { "x-request-id": requestId } }
+      );
+    }
+
     const parsed = RefundCalcSchema.safeParse(body);
 
     if (!parsed.success) {
+      reqLogger.info("Invalid refund calculation payload submitted");
       return NextResponse.json(
         { error: "Invalid ticket data. Unable to calculate refund." },
-        { status: 400 }
+        { status: 400, headers: { "x-request-id": requestId } }
       );
     }
 
     const { pnrData, calculationTime } = parsed.data;
 
-    // Never log raw PNR
-    console.log(`[refund/calculate] Refund calculation request, pnr_length=${pnrData.pnr.length}`);
+    // Hard Rule: Never log raw PNR
+    reqLogger.info("Calculating refund", {
+      pnrHash: hashPnr(pnrData.pnr),
+      pnrLength: pnrData.pnr.length,
+      trainNumber: pnrData.journey.trainNumber,
+      travelClass: pnrData.booking.class,
+    });
 
     const result = calculateRefund(pnrData, calculationTime);
 
-    return NextResponse.json({ result });
+    const response = NextResponse.json({ result }, { status: 200 });
+    response.headers.set("x-request-id", requestId);
+    return response;
   } catch (error: unknown) {
-    console.error("[refund/calculate] Calculation error (details redacted)");
+    reqLogger.error("Refund calculation failed with unhandled exception", {
+      errorType: error instanceof Error ? error.name : "Unknown",
+    });
+
     return NextResponse.json(
-      { error: "Something went wrong while calculating your refund. Please try again." },
-      { status: 500 }
+      {
+        error:
+          "Something went wrong while calculating your refund. Please try again.",
+      },
+      { status: 500, headers: { "x-request-id": requestId } }
     );
   }
 }
