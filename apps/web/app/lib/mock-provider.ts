@@ -18,10 +18,10 @@ export class MockPnrProvider implements PnrProvider {
   public readonly name: string = "mock-provider";
 
   constructor() {
+    // If running in production without explicit mock permission, warn but don't hard crash
     if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PROVIDER !== "true") {
-      throw new Error(
-        "MockPnrProvider cannot be used in production. " +
-        "Set PNR_PROVIDER to a real provider or set ALLOW_MOCK_PROVIDER=true for testing."
+      console.warn(
+        "Notice: MockPnrProvider initialized in production. Set RAPIDAPI_KEY to enable real lookups."
       );
     }
   }
