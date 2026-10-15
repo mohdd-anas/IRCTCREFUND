@@ -25,6 +25,7 @@ export interface ProviderWrapperOptions {
  * and error sanitization (Hard Rule: never leak provider internals).
  */
 export class RobustProviderWrapper implements PnrProvider {
+  public readonly name: string;
   private timeoutMs: number;
   private maxRetries: number;
 
@@ -32,6 +33,7 @@ export class RobustProviderWrapper implements PnrProvider {
     private innerProvider: PnrProvider,
     options: ProviderWrapperOptions = {}
   ) {
+    this.name = `robust(${innerProvider.name})`;
     this.timeoutMs = options.timeoutMs ?? env.PROVIDER_TIMEOUT_MS;
     this.maxRetries = options.maxRetries ?? env.PROVIDER_MAX_RETRIES;
   }

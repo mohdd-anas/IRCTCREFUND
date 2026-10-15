@@ -10,12 +10,13 @@
  */
 
 import type { CanonicalPnr } from "./types";
+import type { PnrProvider } from "./provider/types";
 
-export interface PnrProvider {
-  getPnrStatus(pnr: string): Promise<CanonicalPnr>;
-}
+export type { PnrProvider };
 
 export class MockPnrProvider implements PnrProvider {
+  public readonly name: string = "mock-provider";
+
   constructor() {
     if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PROVIDER !== "true") {
       throw new Error(
@@ -60,7 +61,7 @@ export class MockPnrProvider implements PnrProvider {
         source: "LKO",
         destination: "NDLS",
         journeyDate,
-        departureTime
+        departureTime,
       },
       booking: {
         fare: 1185,
@@ -68,12 +69,12 @@ export class MockPnrProvider implements PnrProvider {
         quota: "GN",
         ticketType: "GENERAL",
         bookingStatus: "CONFIRMED",
-        chartStatus: "NOT_PREPARED"
+        chartStatus: "NOT_PREPARED",
       },
       passengers: [
         { bookingStatus: "CNF", currentStatus: "CNF" },
-        { bookingStatus: "CNF", currentStatus: "CNF" }
-      ]
+        { bookingStatus: "CNF", currentStatus: "CNF" },
+      ],
     };
   }
 
@@ -91,7 +92,7 @@ export class MockPnrProvider implements PnrProvider {
         source: "NDLS",
         destination: "BPL",
         journeyDate,
-        departureTime
+        departureTime,
       },
       booking: {
         fare: 1755,
@@ -99,11 +100,11 @@ export class MockPnrProvider implements PnrProvider {
         quota: "TQ",
         ticketType: "TATKAL",
         bookingStatus: "CONFIRMED",
-        chartStatus: "NOT_PREPARED"
+        chartStatus: "NOT_PREPARED",
       },
       passengers: [
-        { bookingStatus: "CNF", currentStatus: "CNF" }
-      ]
+        { bookingStatus: "CNF", currentStatus: "CNF" },
+      ],
     };
   }
 
@@ -121,7 +122,7 @@ export class MockPnrProvider implements PnrProvider {
         source: "NDLS",
         destination: "BCT",
         journeyDate,
-        departureTime
+        departureTime,
       },
       booking: {
         fare: 2930,
@@ -129,13 +130,13 @@ export class MockPnrProvider implements PnrProvider {
         quota: "GN",
         ticketType: "GENERAL",
         bookingStatus: "WAITLISTED",
-        chartStatus: "PREPARED"
+        chartStatus: "PREPARED",
       },
       passengers: [
         { bookingStatus: "WL/12", currentStatus: "WL/8" },
         { bookingStatus: "WL/13", currentStatus: "WL/9" },
-        { bookingStatus: "WL/14", currentStatus: "WL/10" }
-      ]
+        { bookingStatus: "WL/14", currentStatus: "WL/10" },
+      ],
     };
   }
 
@@ -153,7 +154,7 @@ export class MockPnrProvider implements PnrProvider {
         source: "NDLS",
         destination: "HWH",
         journeyDate,
-        departureTime
+        departureTime,
       },
       booking: {
         fare: 3450,
@@ -161,12 +162,12 @@ export class MockPnrProvider implements PnrProvider {
         quota: "GN",
         ticketType: "GENERAL",
         bookingStatus: "CONFIRMED",
-        chartStatus: "NOT_PREPARED"
+        chartStatus: "NOT_PREPARED",
       },
       passengers: [
         { bookingStatus: "CNF", currentStatus: "CNF" },
-        { bookingStatus: "WL/1", currentStatus: "WL/3" }
-      ]
+        { bookingStatus: "WL/1", currentStatus: "WL/3" },
+      ],
     };
   }
 }

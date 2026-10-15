@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { MockPnrProvider } from "@/app/lib/mock-provider";
+import { PnrProviderFactory } from "@/app/lib/provider/factory";
 import { RobustProviderWrapper, ProviderError } from "@/app/lib/provider-wrapper";
 import { getRateLimiter } from "@/app/lib/rate-limiter";
 import { hashPnr } from "@/app/lib/crypto";
@@ -17,7 +17,11 @@ let providerInstance: RobustProviderWrapper | null = null;
 
 function getRobustProvider(): RobustProviderWrapper {
   if (!providerInstance) {
-    const rawProvider = new MockPnrProvider();
+    // Factory selects provider by env (mock, template, etc.) with production guard
+    const rawProvider = PnrProviderFactory.create({
+      enableCache: false, // Route already manages snapshot persistence via repository
+      allowFallback: true,
+    });
     providerInstance = new RobustProviderWrapper(rawProvider);
   }
   return providerInstance;
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
     await repository.savePnrSnapshot({
       pnrHash,
       canonicalJson: pnrData,
-      provider: "mock",
+      provider: providerInstance?.name || "factory-provider",
       ttlSeconds: 1800, // 30 minutes
     });
 

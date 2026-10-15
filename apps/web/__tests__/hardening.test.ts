@@ -59,6 +59,7 @@ describe("Sprint 2 — API Hardening & Security Suite", () => {
   describe("Provider Timeout & Retry Behavior", () => {
     it("times out when provider exceeds timeoutMs threshold", async () => {
       const slowProvider = {
+        name: "slow-provider",
         async getPnrStatus(): Promise<CanonicalPnr> {
           await new Promise((resolve) => setTimeout(resolve, 300));
           throw new Error("Should have timed out");
@@ -78,6 +79,7 @@ describe("Sprint 2 — API Hardening & Security Suite", () => {
     it("does NOT retry non-retryable 4xx errors (e.g. PNR_NOT_FOUND)", async () => {
       let callCount = 0;
       const notFoundProvider = {
+        name: "not-found-provider",
         async getPnrStatus(): Promise<CanonicalPnr> {
           callCount++;
           throw new Error("PNR_NOT_FOUND");
@@ -96,6 +98,7 @@ describe("Sprint 2 — API Hardening & Security Suite", () => {
     it("retries retryable transient errors up to maxRetries", async () => {
       let callCount = 0;
       const flapperProvider = {
+        name: "flapper-provider",
         async getPnrStatus(): Promise<CanonicalPnr> {
           callCount++;
           if (callCount < 3) {
