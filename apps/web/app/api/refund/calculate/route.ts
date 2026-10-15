@@ -4,6 +4,7 @@ import { calculateRefund } from "@/app/lib/refund-engine";
 import { getRateLimiter } from "@/app/lib/rate-limiter";
 import { hashPnr } from "@/app/lib/crypto";
 import { logger } from "@/app/lib/logger";
+import { getRepository } from "@/app/lib/db/repository";
 
 // Re-validate input independently — never trust the caller (Hard Rule)
 const RefundCalcSchema = z.object({
@@ -41,8 +42,8 @@ const RefundCalcSchema = z.object({
 export async function POST(request: NextRequest) {
   const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
   const reqLogger = logger.withRequestId(requestId);
+  const repository = getRepository();
 
-  // Rate limiting
   const clientIp =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
@@ -84,18 +85,34 @@ export async function POST(request: NextRequest) {
     }
 
     const { pnrData, calculationTime } = parsed.data;
+    const pnrHash = hashPnr(pnrData.pnr);
 
     // Hard Rule: Never log raw PNR
     reqLogger.info("Calculating refund", {
-      pnrHash: hashPnr(pnrData.pnr),
+      pnrHash,
       pnrLength: pnrData.pnr.length,
       trainNumber: pnrData.journey.trainNumber,
       travelClass: pnrData.booking.class,
     });
 
+    // Pure engine calculation (DB-free engine execution)
     const result = calculateRefund(pnrData, calculationTime);
 
-    const response = NextResponse.json({ result }, { status: 200 });
+    // Persist calculation record for full auditability
+    // Answers: "Why did we return this amount on this date?" from one query.
+    const { id: calculationId } = await repository.saveCalculation({
+      requestId,
+      pnrHash,
+      inputSnapshot: pnrData,
+      ruleVersion: result.ruleVersion,
+      provider: "mock",
+      result,
+    });
+
+    const response = NextResponse.json(
+      { result, calculationId },
+      { status: 200 }
+    );
     response.headers.set("x-request-id", requestId);
     return response;
   } catch (error: unknown) {
