@@ -1,0 +1,634 @@
+/* ─── Design Tokens ─── */
+:root {
+  --board-bg: #12181f;
+  --board-panel: #1b232c;
+  --board-line: #2a343f;
+  --amber: #ffb627;
+  --amber-dim: #b8860f;
+  --paper: #f1ead9;
+  --muted: #93a1af;
+  --moss: #6fa98a;
+  --rust: #e2664a;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius: 8px;
+  --radius-sm: 4px;
+  --transition: 180ms ease;
+}
+
+/* ─── Reset ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--board-bg);
+  color: var(--paper);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ─── App Container ─── */
+.app-container {
+  max-width: 580px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  min-height: 100vh;
+}
+
+@media (max-width: 360px) {
+  .app-container {
+    padding: 24px 14px 48px;
+  }
+}
+
+/* ─── Ticket Stub Card ─── */
+.ticket-stub {
+  position: relative;
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-left: 4px solid var(--amber);
+  border-radius: var(--radius);
+  padding: 32px 28px 28px;
+  margin-bottom: 4px;
+}
+
+/* Perforated left edge effect */
+.ticket-stub::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 16px;
+  bottom: 16px;
+  width: 4px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--amber) 0px,
+    var(--amber) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  border-radius: 0 2px 2px 0;
+}
+
+.ticket-stub h1 {
+  font-family: var(--font-sans);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--paper);
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.ticket-stub .subtitle {
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+/* ─── PNR Input ─── */
+.pnr-field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pnr-input-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.pnr-input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: var(--paper);
+  background: var(--board-bg);
+  border: 1px solid var(--board-line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.pnr-input::placeholder {
+  color: #4a5568;
+  letter-spacing: 0.1em;
+}
+
+.pnr-input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(255, 182, 39, 0.15);
+}
+
+.pnr-char-count {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ─── Button ─── */
+.btn-primary {
+  display: block;
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--board-bg);
+  background: var(--amber);
+  border: none;
+  border-radius: var(--radius);
+  padding: 14px 24px;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition), opacity var(--transition);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #ffc34d;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.btn-secondary {
+  display: block;
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--board-line);
+  border-radius: var(--radius);
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+  margin-top: 12px;
+}
+
+.btn-secondary:hover {
+  border-color: var(--muted);
+  color: var(--paper);
+}
+
+.btn-secondary:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ─── Disclaimer ─── */
+.disclaimer {
+  font-size: 0.72rem;
+  color: #5e6b7a;
+  line-height: 1.6;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--board-line);
+}
+
+/* ─── Loading State ─── */
+.loading-text {
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding: 40px 0;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .loading-text::after {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    background: var(--muted);
+    border-radius: 50%;
+    margin-left: 4px;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* ─── Result Section ─── */
+.result-section {
+  margin-top: 4px;
+}
+
+/* Route line */
+.route-line {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--amber);
+  margin-bottom: 4px;
+  padding: 20px 28px 8px;
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.route-arrow {
+  color: var(--muted);
+  margin: 0 8px;
+  font-weight: 400;
+}
+
+/* Train info */
+.train-info {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0 28px 18px;
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-top: none;
+  border-bottom: none;
+  line-height: 1.6;
+}
+
+.train-info .train-number {
+  font-family: var(--font-mono);
+  color: var(--paper);
+  font-weight: 500;
+}
+
+.train-info .train-date {
+  font-family: var(--font-mono);
+  color: var(--paper);
+}
+
+/* ─── Ticket Detail Rows ─── */
+.ticket-details {
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-top: 1px solid var(--board-line);
+  padding: 0 28px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--board-line);
+  font-size: 0.85rem;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: var(--muted);
+}
+
+.detail-value {
+  color: var(--paper);
+  font-weight: 500;
+  text-align: right;
+}
+
+.detail-value.mono {
+  font-family: var(--font-mono);
+}
+
+/* ─── Passengers Table ─── */
+.passengers-section {
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-top: none;
+  padding: 14px 28px;
+}
+
+.passengers-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.passenger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.82rem;
+}
+
+.passenger-label {
+  color: var(--muted);
+}
+
+.passenger-status {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.status-cnf {
+  color: var(--moss);
+}
+
+.status-wl {
+  color: var(--rust);
+}
+
+.status-rac {
+  color: var(--amber-dim);
+}
+
+/* ─── Refund Ledger (receipt style) ─── */
+.refund-ledger {
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 20px 28px 24px;
+}
+
+.ledger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.88rem;
+}
+
+.ledger-label {
+  color: var(--muted);
+}
+
+.ledger-value {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--paper);
+}
+
+.ledger-divider {
+  border: none;
+  border-top: 1px dashed var(--board-line);
+  margin: 10px 0;
+}
+
+.ledger-total {
+  padding: 8px 0 4px;
+}
+
+.ledger-total .ledger-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--paper);
+}
+
+.ledger-total .ledger-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.refund-positive {
+  color: var(--amber) !important;
+}
+
+.refund-zero {
+  color: var(--rust) !important;
+}
+
+/* ─── Explanation Section ─── */
+.explanation-section {
+  margin-top: 16px;
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-radius: var(--radius);
+  padding: 20px 28px;
+}
+
+.explanation-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--transition);
+}
+
+.explanation-toggle:hover {
+  color: var(--paper);
+}
+
+.explanation-toggle:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.explanation-chevron {
+  display: inline-block;
+  transition: transform var(--transition);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.explanation-chevron.open {
+  transform: rotate(180deg);
+}
+
+.explanation-list {
+  list-style: none;
+  margin-top: 14px;
+  padding: 0;
+}
+
+.explanation-list li {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 4px 0;
+}
+
+/* ─── Warning Notice ─── */
+.warning-notice {
+  margin-top: 12px;
+  border: 1px solid var(--amber-dim);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  font-size: 0.82rem;
+  color: var(--amber-dim);
+  line-height: 1.6;
+  background: rgba(255, 182, 39, 0.04);
+}
+
+/* ─── Unsupported State ─── */
+.unsupported-card {
+  background: var(--board-panel);
+  border: 1px solid var(--board-line);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-top: 4px;
+}
+
+.unsupported-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--paper);
+  margin-bottom: 12px;
+}
+
+.unsupported-text {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+/* ─── Error State ─── */
+.error-card {
+  background: var(--board-panel);
+  border: 1px solid rgba(226, 102, 74, 0.3);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-top: 4px;
+}
+
+.error-text {
+  font-size: 0.9rem;
+  color: var(--rust);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+/* ─── Focus Styles ─── */
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ─── Logo / Brand ─── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  background: var(--amber);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--board-bg);
+}
+
+.brand-name {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--paper);
+  letter-spacing: -0.01em;
+}
+
+.brand-dot {
+  color: var(--amber);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 420px) {
+  .ticket-stub {
+    padding: 24px 20px 22px;
+  }
+
+  .ticket-stub h1 {
+    font-size: 1.2rem;
+  }
+
+  .pnr-input {
+    font-size: 1.25rem;
+  }
+
+  .route-line {
+    font-size: 1.1rem;
+    padding: 16px 20px 6px;
+  }
+
+  .train-info,
+  .ticket-details,
+  .passengers-section,
+  .refund-ledger {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .explanation-section {
+    padding: 16px 20px;
+  }
+
+  .unsupported-card,
+  .error-card {
+    padding: 20px;
+  }
+
+  .ledger-total .ledger-value {
+    font-size: 1.35rem;
+  }
+}
+
+/* ─── Reduced Motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
