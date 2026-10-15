@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "db:cleanup": "npx tsx scripts/cleanup-ttl.ts",
     "db:generate": "drizzle-kit generate"
   },
@@ -20,6 +21,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",

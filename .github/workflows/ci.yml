@@ -1,0 +1,66 @@
+name: RailRefund CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, Typecheck, and Test
+    runs-on: ubuntu-latest
+    env:
+      PNR_HASH_SALT: railrefund-ci-salt-must-be-at-least-16-chars
+      ALLOW_MOCK_PROVIDER: "true"
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint --workspaces --if-present
+
+      - name: Run Typecheck
+        run: |
+          npx tsc -b packages/refund-engine/tsconfig.json
+          npx tsc --noEmit --project apps/web/tsconfig.json
+
+      - name: Run Unit & Integration Tests (Vitest)
+        run: npm test
+
+      - name: Build All Workspaces
+        run: npm run build
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+
+      - name: Run Playwright E2E Tests
+        run: npm run test:e2e
+        working-directory: apps/web
+        env:
+          ALLOW_MOCK_PROVIDER: "true"
+          CI: true
+
+      - name: Upload Playwright Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
