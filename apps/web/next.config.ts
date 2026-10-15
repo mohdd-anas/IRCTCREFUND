@@ -42,8 +42,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  transpilePackages: ["@railrefund/refund-engine"],
   async headers() {
     return [
       {

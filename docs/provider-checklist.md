@@ -46,3 +46,18 @@
 - [ ] **Fail-Closed Principle**: If the provider is unreachable, does the system fail closed with clean, generic error messages rather than guessing data?
 - [ ] **Timeout Enforcement**: All provider invocations must be bound to a strict 5-second timeout via `RobustProviderWrapper`.
 - [ ] **Error Isolation**: No vendor stack traces, API keys, or private endpoint URLs may ever leak to the client or public logs.
+
+---
+
+## 10. Implemented Provider: RapidApiPnrProvider
+
+RailRefund provides a built-in `RapidApiPnrProvider` (`apps/web/app/lib/provider/rapidapi-provider.ts`) compliant with the `CanonicalPnr` contract:
+
+- **Activation**: Set `RAPIDAPI_KEY` in environment variables (or `PNR_PROVIDER=rapidapi`).
+- **Configuration**:
+  - `RAPIDAPI_KEY`: API key from RapidAPI account.
+  - `RAPIDAPI_HOST`: Host header (default: `irctc1.p.rapidapi.com`).
+  - `RAPIDAPI_PNR_ENDPOINT`: Endpoint URL (default: `https://irctc1.p.rapidapi.com/api/v3/getPNRStatus`).
+- **Data Privacy**: No raw PNR numbers are logged; all lookups use cryptographic salted SHA-256 hashes.
+- **Resilience**: Automatically wrapped with `RobustProviderWrapper` (retries, timeouts) and `CachedProviderDecorator` (cache TTL).
+

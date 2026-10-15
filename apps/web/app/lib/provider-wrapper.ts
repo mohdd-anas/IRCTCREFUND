@@ -120,6 +120,10 @@ export class RobustProviderWrapper implements PnrProvider {
       return new ProviderError("Provider request timed out.", "TIMEOUT", true);
     }
 
+    if (message.includes("RATE_LIMITED")) {
+      return new ProviderError("Provider rate limit reached.", "RATE_LIMITED", false);
+    }
+
     if (message.includes("ECONNREFUSED") || message.includes("ETIMEDOUT") || message.includes("503")) {
       return new ProviderError("Provider service is temporarily unreachable.", "UNAVAILABLE", true);
     }

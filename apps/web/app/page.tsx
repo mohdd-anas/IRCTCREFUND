@@ -70,14 +70,6 @@ export default function Home() {
 
   return (
     <>
-      {/* Brand */}
-      <div className="brand">
-        <div className="brand-mark">R</div>
-        <span className="brand-name">
-          Rail<span className="brand-dot">Refund</span>
-        </span>
-      </div>
-
       {/* Input state */}
       {(state.step === "input" || state.step === "loading") && (
         <PnrInput

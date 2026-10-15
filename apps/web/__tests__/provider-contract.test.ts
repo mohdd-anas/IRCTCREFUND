@@ -4,6 +4,7 @@ import { TemplatePnrAdapter } from "@/app/lib/provider/adapter-template";
 import { CachedProviderDecorator, InMemoryCacheStore } from "@/app/lib/provider/cached-provider";
 import { FallbackProviderChain } from "@/app/lib/provider/fallback-chain";
 import { PnrProviderFactory } from "@/app/lib/provider/factory";
+import { RapidApiPnrProvider } from "@/app/lib/provider/rapidapi-provider";
 import type { PnrProvider } from "@/app/lib/provider/types";
 import type { CanonicalPnr } from "@/app/lib/types";
 
@@ -216,6 +217,128 @@ describe("Sprint 4 — Provider Layer & Contract Tests", () => {
         envObj["NODE_ENV"] = origNodeEnv;
         envObj["ALLOW_MOCK_PROVIDER"] = origAllowMock;
       }
+    });
+
+    it("creates RapidApiPnrProvider when PNR_PROVIDER=rapidapi and RAPIDAPI_KEY is present", () => {
+      const origKey = process.env.RAPIDAPI_KEY;
+      const origProvider = process.env.PNR_PROVIDER;
+      try {
+        process.env.RAPIDAPI_KEY = "test-api-key";
+        process.env.PNR_PROVIDER = "rapidapi";
+
+        const provider = PnrProviderFactory.create({ enableCache: false });
+        expect(provider.name).toBe("rapidapi-pnr-provider");
+      } finally {
+        process.env.RAPIDAPI_KEY = origKey;
+        process.env.PNR_PROVIDER = origProvider;
+      }
+    });
+  });
+
+  /* ─── 5. RapidApiPnrProvider Contract & Error Handling ─── */
+  describe("RapidApiPnrProvider", () => {
+    it("fails at instantiation when RAPIDAPI_KEY is missing", () => {
+      const origKey = process.env.RAPIDAPI_KEY;
+      delete process.env.RAPIDAPI_KEY;
+      try {
+        expect(() => new RapidApiPnrProvider()).toThrow(/RAPIDAPI_KEY/);
+      } finally {
+        process.env.RAPIDAPI_KEY = origKey;
+      }
+    });
+
+    it("normalizes real RapidAPI response into CanonicalPnr contract", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: true,
+          message: "Success",
+          data: {
+            pnrNumber: "2743933740",
+            trainNumber: "12424",
+            trainName: "RAJDHANI EXP",
+            sourceStation: "NDLS",
+            destinationStation: "DBRG",
+            dateOfJourney: "2026-10-20",
+            departureTime: "16:20",
+            chartStatus: "NOT_PREPARED",
+            journeyClass: "3A",
+            quota: "GN",
+            bookingFare: 3450,
+            ticketType: "GENERAL",
+            bookingStatus: "CONFIRMED",
+            passengerList: [
+              {
+                bookingStatus: "CNF",
+                currentStatus: "CNF",
+              },
+            ],
+          },
+        }),
+      });
+
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = mockFetch;
+
+      try {
+        const provider = new RapidApiPnrProvider({ apiKey: "dummy-key" });
+        const result = await provider.getPnrStatus("2743933740");
+
+        expect(result.pnr).toBe("2743933740");
+        expect(result.journey.trainNumber).toBe("12424");
+        expect(result.journey.trainName).toBe("RAJDHANI EXP");
+        expect(result.journey.source).toBe("NDLS");
+        expect(result.journey.destination).toBe("DBRG");
+        expect(result.booking.fare).toBe(3450);
+        expect(result.booking.class).toBe("3A");
+        expect(result.booking.ticketType).toBe("GENERAL");
+        expect(result.booking.bookingStatus).toBe("CONFIRMED");
+        expect(result.passengers.length).toBe(1);
+        expect(result.passengers[0].bookingStatus).toBe("CNF");
+        expect(result.metadata?.provider).toBe("rapidapi-pnr-provider");
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    });
+
+    it("throws PNR_NOT_FOUND when upstream returns 404 or not-found message", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+      });
+
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = mockFetch;
+
+      try {
+        const provider = new RapidApiPnrProvider({ apiKey: "dummy-key" });
+        await expect(provider.getPnrStatus("2743933740")).rejects.toThrow("PNR_NOT_FOUND");
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    });
+
+    it("throws RATE_LIMITED when upstream returns 429", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+      });
+
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = mockFetch;
+
+      try {
+        const provider = new RapidApiPnrProvider({ apiKey: "dummy-key" });
+        await expect(provider.getPnrStatus("2743933740")).rejects.toThrow("RATE_LIMITED");
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    });
+
+    it("throws INVALID_PNR for malformed PNR input", async () => {
+      const provider = new RapidApiPnrProvider({ apiKey: "dummy-key" });
+      await expect(provider.getPnrStatus("123")).rejects.toThrow("INVALID_PNR");
     });
   });
 });

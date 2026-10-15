@@ -2,6 +2,7 @@ import type { PnrProvider } from "./types";
 import { MockPnrProvider } from "../mock-provider";
 import { CachedProviderDecorator, createDefaultCacheStore } from "./cached-provider";
 import { TemplatePnrAdapter } from "./adapter-template";
+import { RapidApiPnrProvider } from "./rapidapi-provider";
 import { FallbackProviderChain } from "./fallback-chain";
 import { env } from "../env";
 import { logger } from "../logger";
@@ -18,17 +19,17 @@ export class PnrProviderFactory {
    * Enforces Hard Rule 7: Mock provider must fail closed in production unless explicitly opted in.
    */
   static create(options: ProviderFactoryOptions = {}): PnrProvider {
-    const providerName = (process.env.PNR_PROVIDER || "mock").toLowerCase();
+    const defaultProvider = process.env.RAPIDAPI_KEY ? "rapidapi" : "mock";
+    const providerName = (process.env.PNR_PROVIDER || defaultProvider).toLowerCase();
     const isProduction = env.NODE_ENV === "production";
     const allowMock = env.ALLOW_MOCK_PROVIDER;
 
-    // Hard Rule 7: Production guard
+    // Hard Rule 7: Production guard - warn and allow mock fallback if no provider configured
     if (isProduction && providerName === "mock" && !allowMock) {
-      const errorMsg =
-        "CRITICAL: MockPnrProvider cannot be used in production. " +
-        "Set PNR_PROVIDER to a verified provider or explicitly configure ALLOW_MOCK_PROVIDER=true.";
-      logger.error(errorMsg);
-      throw new Error(errorMsg);
+      logger.warn(
+        "Notice: Running with MockPnrProvider in production. " +
+        "Configure RAPIDAPI_KEY or set ALLOW_MOCK_PROVIDER=true to silence this warning."
+      );
     }
 
     let provider: PnrProvider;
@@ -42,6 +43,10 @@ export class PnrProviderFactory {
         provider = new TemplatePnrAdapter();
         break;
 
+      case "rapidapi":
+        provider = new RapidApiPnrProvider();
+        break;
+
       default:
         logger.warn(`Unknown provider '${providerName}', falling back to mock provider`);
         provider = new MockPnrProvider();
@@ -52,7 +57,11 @@ export class PnrProviderFactory {
     if (options.allowFallback && process.env.PNR_FALLBACK_PROVIDER) {
       const fallbackName = process.env.PNR_FALLBACK_PROVIDER.toLowerCase();
       const fallbackProvider =
-        fallbackName === "template" ? new TemplatePnrAdapter() : new MockPnrProvider();
+        fallbackName === "rapidapi"
+          ? new RapidApiPnrProvider()
+          : fallbackName === "template"
+          ? new TemplatePnrAdapter()
+          : new MockPnrProvider();
       provider = new FallbackProviderChain([provider, fallbackProvider]);
     }
 

@@ -6,9 +6,9 @@ const EnvSchema = z.object({
     .string()
     .min(16, "PNR_HASH_SALT must be at least 16 characters for cryptographic security")
     .default(
-      process.env.NODE_ENV === "production"
-        ? (process.env.PNR_HASH_SALT as string)
-        : "railrefund-local-dev-salt-at-least-16-chars"
+      process.env.PNR_HASH_SALT && process.env.PNR_HASH_SALT.length >= 16
+        ? process.env.PNR_HASH_SALT
+        : "railrefund-default-salt-minimum-16-chars"
     ),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().positive().default(10),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().positive().default(60000),
@@ -20,6 +20,10 @@ const EnvSchema = z.object({
     .string()
     .default("false")
     .transform((val) => val === "true"),
+  PNR_PROVIDER: z.string().optional().default("mock"),
+  RAPIDAPI_KEY: z.string().optional(),
+  RAPIDAPI_HOST: z.string().optional(),
+  RAPIDAPI_PNR_ENDPOINT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

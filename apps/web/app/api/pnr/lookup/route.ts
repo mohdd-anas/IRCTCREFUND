@@ -162,6 +162,26 @@ export async function POST(request: NextRequest) {
           { status: 504, headers: { "x-request-id": requestId } }
         );
       }
+
+      if (error.code === "RATE_LIMITED") {
+        return NextResponse.json(
+          {
+            error:
+              "API rate limit reached. Please wait a moment before trying again.",
+          },
+          { status: 429, headers: { "x-request-id": requestId } }
+        );
+      }
+
+      if (error.code === "UNAVAILABLE") {
+        return NextResponse.json(
+          {
+            error:
+              "The railway inquiry service is temporarily unavailable. Please try again in a few minutes.",
+          },
+          { status: 503, headers: { "x-request-id": requestId } }
+        );
+      }
     }
 
     reqLogger.error("PNR lookup failed with unhandled exception", {
