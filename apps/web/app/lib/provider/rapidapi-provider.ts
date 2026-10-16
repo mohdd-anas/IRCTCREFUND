@@ -43,6 +43,25 @@ interface RapidApiPnrResponse {
   TrainNo?: string;
 }
 
+interface PassengerPayload {
+  passengerSerialNumber?: number;
+  bookingStatus?: string;
+  BookingStatus?: string;
+  bookingStatusDetails?: string;
+  currentStatus?: string;
+  CurrentStatus?: string;
+  currentStatusDetails?: string;
+  bookingCoachId?: string;
+  bookingBerthNo?: number;
+  currentCoachId?: string;
+  currentBerthNo?: number;
+  passengerQuota?: string;
+  Number?: number;
+  Coach?: string;
+  Berth?: number;
+  [key: string]: unknown;
+}
+
 interface PnrDataPayload {
   pnrNumber?: string;
   Pnr?: string;
@@ -81,31 +100,10 @@ interface PnrDataPayload {
   TicketType?: string;
   ticketTypeInPrs?: string;   // "E" = e-ticket, etc.
   bookingStatus?: string;
-  passengerList?: Array<{
-    passengerSerialNumber?: number;
-    bookingStatus?: string;
-    BookingStatus?: string;
-    bookingStatusDetails?: string;
-    currentStatus?: string;
-    CurrentStatus?: string;
-    currentStatusDetails?: string;
-    bookingCoachId?: string;
-    bookingBerthNo?: number;
-    currentCoachId?: string;
-    currentBerthNo?: number;
-    passengerQuota?: string;
-  }>;
-  PassengerStatus?: Array<{
-    BookingStatus?: string;
-    CurrentStatus?: string;
-    Number?: number;
-    Coach?: string;
-    Berth?: number;
-  }>;
-  passengers?: Array<{
-    bookingStatus?: string;
-    currentStatus?: string;
-  }>;
+  passengerList?: PassengerPayload[];
+  PassengerStatus?: PassengerPayload[];
+  passengers?: PassengerPayload[];
+  [key: string]: unknown;
 }
 
 
@@ -180,7 +178,7 @@ export class RapidApiPnrProvider implements PnrProvider {
       throw new Error(`PROVIDER_ERROR: HTTP ${response.status}`);
     }
 
-    const raw = (await response.json()) as RapidApiPnrResponse & Record<string, any>;
+    const raw = (await response.json()) as RapidApiPnrResponse & Record<string, unknown>;
 
     // Handle subscription / auth error returned with HTTP 200
     const rawMsg = (raw.message || "").toLowerCase();
@@ -197,7 +195,7 @@ export class RapidApiPnrProvider implements PnrProvider {
     // Other APIs:                      { status: true,   data: {...} }
     const isSuccess = raw.success === true || raw.status === true;
     const dataObj = (raw.data || (raw.trainNumber || raw.TrainNo ? raw : null)) as
-      | (PnrDataPayload & Record<string, any>)
+      | (PnrDataPayload & Record<string, unknown>)
       | null;
 
     if (!isSuccess || !dataObj) {
@@ -223,7 +221,7 @@ export class RapidApiPnrProvider implements PnrProvider {
    */
   private normalizeToCanonical(
     pnr: string,
-    data: PnrDataPayload & Record<string, any>
+    data: PnrDataPayload & Record<string, unknown>
   ): CanonicalPnr {
     // Train info
     const trainNumber = data.trainNumber || data.TrainNo || "UNKNOWN";
@@ -285,20 +283,22 @@ export class RapidApiPnrProvider implements PnrProvider {
     );
 
     // Passengers — normalize each one
-    const passengerList: Array<Record<string, any>> =
-      data.passengerList || data.PassengerStatus || data.passengers || [];
+    const passengerList: PassengerPayload[] =
+      (data.passengerList || data.PassengerStatus || data.passengers || []) as PassengerPayload[];
 
     const passengers = passengerList.map((p) => ({
-      bookingStatus:
+      bookingStatus: String(
         p.bookingStatusDetails ||   // e.g. "RLWL/7" — most descriptive
         p.bookingStatus ||
         p.BookingStatus ||
-        "UNKNOWN",
-      currentStatus:
+        "UNKNOWN"
+      ),
+      currentStatus: String(
         p.currentStatusDetails ||   // e.g. "RLWL/5"
         p.currentStatus ||
         p.CurrentStatus ||
-        "UNKNOWN",
+        "UNKNOWN"
+      ),
     }));
 
     return {

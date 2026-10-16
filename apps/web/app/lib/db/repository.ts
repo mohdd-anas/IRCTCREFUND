@@ -1,7 +1,7 @@
 import { eq, lte, gt, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { pnrRequests, pnrSnapshots, refundCalculations, refundRules } from "./schema";
+import { pnrRequests, pnrSnapshots, refundCalculations } from "./schema";
 import type { CanonicalPnr, RefundResult } from "../types";
 import { logger } from "../logger";
 

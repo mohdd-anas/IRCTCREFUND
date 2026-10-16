@@ -4,7 +4,6 @@ import { POST as refundCalcHandler } from "@/app/api/refund/calculate/route";
 import { GET as healthHandler } from "@/app/api/health/route";
 import { GET as auditHandler } from "@/app/api/refund/audit/[id]/route";
 import { NextRequest } from "next/server";
-import { getRepository } from "@/app/lib/db/repository";
 import type { CanonicalPnr } from "@/app/lib/types";
 
 describe("Sprint 5 — API Route Integration Suite", () => {

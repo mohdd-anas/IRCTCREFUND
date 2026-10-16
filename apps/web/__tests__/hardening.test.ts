@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { InMemoryRateLimiter } from "@/app/lib/rate-limiter";
-import { RobustProviderWrapper, ProviderError } from "@/app/lib/provider-wrapper";
+import { RobustProviderWrapper } from "@/app/lib/provider-wrapper";
 import { hashPnr } from "@/app/lib/crypto";
 import { Logger } from "@/app/lib/logger";
 import { POST as pnrLookupHandler } from "@/app/api/pnr/lookup/route";
