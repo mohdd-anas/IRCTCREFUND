@@ -34,16 +34,17 @@ Navigate to **Settings → Environment Variables** and add:
 |---|---|---|---|
 | `PNR_HASH_SALT` | **Yes** | `rr-prod-3f8a9c…` | Min 16 chars. Used for SHA-256 PNR hashing. Generate with `openssl rand -hex 32` |
 | `PNR_PROVIDER` | No | `rapidapi` | `"rapidapi"`, `"mock"`, or `"template"`. Auto-detected as `rapidapi` if `RAPIDAPI_KEY` is present. |
-| `RAPIDAPI_KEY` | For Live Data | `your-x-rapidapi-key` | Free key from [RapidAPI](https://rapidapi.com). Enables real PNR status lookups! |
-| `RAPIDAPI_HOST` | No | `irctc1.p.rapidapi.com` | RapidAPI host header (defaults to `irctc1.p.rapidapi.com`) |
-| `RAPIDAPI_PNR_ENDPOINT`| No | `https://…/getPNRStatus` | Endpoint URL (defaults to standard IRCTC endpoint) |
-| `ALLOW_MOCK_PROVIDER` | No | `true` | Set to `true` **only** for preview/dev. In production, omit or set to `false`. |
+| `RAPIDAPI_KEY` | For Live Data | `your-x-rapidapi-key` | RapidAPI key for Indian Railway PNR status API. |
+| `RAPIDAPI_HOST` | No | `irctc-indian-railway-pnr-status.p.rapidapi.com` | RapidAPI host header |
+| `RAPIDAPI_PNR_ENDPOINT`| No | `https://irctc-indian-railway-pnr-status.p.rapidapi.com/getPNRStatus/{pnr}` | Endpoint URL template |
+| `ALLOW_MOCK_PROVIDER` | Recommended for Demo | `true` | Set to `true` to allow mock provider fallback / demo PNR testing (e.g. `1234567890`). |
 | `RATE_LIMIT_MAX_REQUESTS` | No | `10` | Defaults to 10 per window |
 | `RATE_LIMIT_WINDOW_MS` | No | `60000` | Defaults to 60 s |
-| `PROVIDER_TIMEOUT_MS` | No | `5000` | Provider HTTP timeout |
-| `PROVIDER_MAX_RETRIES` | No | `2` | Provider retry count |
-| `DATABASE_URL` | No | `postgres://…` | Vercel Postgres or external. Omit for in-memory fallback |
-| `REDIS_URL` | No | `redis://…` | Upstash Redis URL. Omit for in-memory cache |
+| `PROVIDER_TIMEOUT_MS` | Recommended | `15000` | Provider HTTP timeout (15s recommended for Indian Railways PRS latency) |
+| `PROVIDER_MAX_RETRIES` | Recommended | `1` | Provider retry count (1 retry avoids Vercel serverless function timeouts) |
+| `DATABASE_URL` | No | `postgres://…` | Vercel Postgres, Neon, or Supabase. Omit for in-memory fallback |
+| `UPSTASH_REDIS_REST_URL` | No | `https://…` | Upstash Redis REST URL for serverless rate limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | No | `…` | Upstash Redis REST Token |
 
 > [!IMPORTANT]
 > In production, when using real PNR lookups, configure `RAPIDAPI_KEY`. If `ALLOW_MOCK_PROVIDER=false` (default) and no provider key is configured, the system fails closed as required by privacy and compliance standards.

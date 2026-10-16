@@ -111,24 +111,38 @@ export class RobustProviderWrapper implements PnrProvider {
     }
 
     const message = err instanceof Error ? err.message : String(err);
+    const errName = err instanceof Error ? err.name : "";
 
     if (message.includes("PNR_NOT_FOUND")) {
       return new ProviderError("PNR not found.", "NOT_FOUND", false);
     }
 
-    if (message.includes("TIMEOUT") || message.includes("timed out")) {
+    if (
+      message.includes("TIMEOUT") ||
+      message.includes("timed out") ||
+      message.includes("TimeoutError") ||
+      errName === "TimeoutError"
+    ) {
       return new ProviderError("Provider request timed out.", "TIMEOUT", true);
     }
 
-    if (message.includes("RATE_LIMITED")) {
+    if (message.includes("RATE_LIMITED") || message.includes("429")) {
       return new ProviderError("Provider rate limit reached.", "RATE_LIMITED", false);
     }
 
-    if (message.includes("ECONNREFUSED") || message.includes("ETIMEDOUT") || message.includes("503")) {
+    if (
+      message.includes("ECONNREFUSED") ||
+      message.includes("ECONNRESET") ||
+      message.includes("ETIMEDOUT") ||
+      message.includes("502") ||
+      message.includes("503") ||
+      message.includes("504") ||
+      message.includes("UNAVAILABLE")
+    ) {
       return new ProviderError("Provider service is temporarily unreachable.", "UNAVAILABLE", true);
     }
 
     // Generic fallback: not retryable, sanitized
-    return new ProviderError("Provider query failed.", "INTERNAL", false);
+    return new ProviderError(message || "Provider query failed.", "INTERNAL", false);
   }
 }

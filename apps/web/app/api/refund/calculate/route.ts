@@ -6,6 +6,9 @@ import { hashPnr } from "@/app/lib/crypto";
 import { logger } from "@/app/lib/logger";
 import { getRepository } from "@/app/lib/db/repository";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 15;
+
 // Re-validate input independently — never trust the caller (Hard Rule)
 const RefundCalcSchema = z.object({
   pnrData: z.object({
@@ -98,16 +101,23 @@ export async function POST(request: NextRequest) {
     // Pure engine calculation (DB-free engine execution)
     const result = calculateRefund(pnrData, calculationTime);
 
-    // Persist calculation record for full auditability
-    // Answers: "Why did we return this amount on this date?" from one query.
-    const { id: calculationId } = await repository.saveCalculation({
-      requestId,
-      pnrHash,
-      inputSnapshot: pnrData,
-      ruleVersion: result.ruleVersion,
-      provider: "mock",
-      result,
-    });
+    // Persist calculation record for full auditability (non-fatal if DB is temporarily unreachable)
+    let calculationId = crypto.randomUUID();
+    try {
+      const saved = await repository.saveCalculation({
+        requestId,
+        pnrHash,
+        inputSnapshot: pnrData,
+        ruleVersion: result.ruleVersion,
+        provider: pnrData.metadata?.provider ? String(pnrData.metadata.provider) : "provider",
+        result,
+      });
+      calculationId = saved.id;
+    } catch (saveErr) {
+      reqLogger.warn("Calculation audit could not be persisted to database", {
+        error: saveErr instanceof Error ? saveErr.message : String(saveErr),
+      });
+    }
 
     const response = NextResponse.json(
       { result, calculationId },

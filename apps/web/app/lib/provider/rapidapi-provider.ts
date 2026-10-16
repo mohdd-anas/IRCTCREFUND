@@ -20,6 +20,7 @@
 
 import type { CanonicalPnr, TicketType, BookingStatus, ChartStatus } from "../types";
 import type { PnrProvider } from "./types";
+import { env } from "../env";
 
 /**
  * Shape of the response from popular RapidAPI PNR Status APIs.
@@ -131,7 +132,7 @@ export class RapidApiPnrProvider implements PnrProvider {
       options?.endpoint ||
       process.env.RAPIDAPI_PNR_ENDPOINT ||
       "https://irctc-indian-railway-pnr-status.p.rapidapi.com/getPNRStatus/{pnr}";
-    this.timeoutMs = options?.timeoutMs || 8000;
+    this.timeoutMs = options?.timeoutMs || env.PROVIDER_TIMEOUT_MS || 15000;
 
     if (!this.apiKey) {
       throw new Error(

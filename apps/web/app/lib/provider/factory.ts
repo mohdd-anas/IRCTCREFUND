@@ -21,15 +21,18 @@ export class PnrProviderFactory {
   static create(options: ProviderFactoryOptions = {}): PnrProvider {
     const defaultProvider = process.env.RAPIDAPI_KEY ? "rapidapi" : "mock";
     const providerName = (process.env.PNR_PROVIDER || defaultProvider).toLowerCase();
-    const isProduction = env.NODE_ENV === "production";
-    const allowMock = env.ALLOW_MOCK_PROVIDER;
+    const isProduction = (process.env.NODE_ENV ?? env.NODE_ENV) === "production";
+    const allowMock =
+      process.env.ALLOW_MOCK_PROVIDER === "true" ||
+      (process.env.ALLOW_MOCK_PROVIDER === undefined && env.ALLOW_MOCK_PROVIDER);
 
-    // Hard Rule 7: Production guard - warn and allow mock fallback if no provider configured
+    // Hard Rule 7: Production guard - fail closed if mock provider is requested in production without permission
     if (isProduction && providerName === "mock" && !allowMock) {
-      logger.warn(
-        "Notice: Running with MockPnrProvider in production. " +
-        "Configure RAPIDAPI_KEY or set ALLOW_MOCK_PROVIDER=true to silence this warning."
-      );
+      const errorMsg =
+        "CRITICAL: MockPnrProvider cannot be used in production. " +
+        "Set PNR_PROVIDER to a verified provider, configure RAPIDAPI_KEY, or explicitly configure ALLOW_MOCK_PROVIDER=true.";
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     let provider: PnrProvider;
@@ -44,6 +47,15 @@ export class PnrProviderFactory {
         break;
 
       case "rapidapi":
+        if (!process.env.RAPIDAPI_KEY && !env.RAPIDAPI_KEY) {
+          if (allowMock) {
+            logger.warn(
+              "RAPIDAPI_KEY not configured, falling back to MockPnrProvider because ALLOW_MOCK_PROVIDER=true."
+            );
+            provider = new MockPnrProvider();
+            break;
+          }
+        }
         provider = new RapidApiPnrProvider();
         break;
 

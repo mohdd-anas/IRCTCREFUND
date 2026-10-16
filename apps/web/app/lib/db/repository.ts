@@ -1,4 +1,4 @@
-import { eq, lte, and } from "drizzle-orm";
+import { eq, lte, gt, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pnrRequests, pnrSnapshots, refundCalculations, refundRules } from "./schema";
@@ -197,18 +197,32 @@ export class DrizzlePostgresRepository implements RefundRepository {
   private db: ReturnType<typeof drizzle>;
 
   constructor(databaseUrl: string) {
-    const pool = new Pool({ connectionString: databaseUrl });
+    const isLocal =
+      databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1");
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      ssl: isLocal ? false : { rejectUnauthorized: false },
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 10000,
+      max: 10,
+    });
     this.db = drizzle(pool);
   }
 
   async logPnrRequest(req: PnrRequestRecord): Promise<void> {
-    await this.db.insert(pnrRequests).values({
-      requestId: req.requestId,
-      pnrHash: req.pnrHash,
-      status: req.status,
-      latencyMs: req.latencyMs,
-      createdAt: req.createdAt ?? new Date(),
-    });
+    try {
+      await this.db.insert(pnrRequests).values({
+        requestId: req.requestId,
+        pnrHash: req.pnrHash,
+        status: req.status,
+        latencyMs: req.latencyMs,
+        createdAt: req.createdAt ?? new Date(),
+      });
+    } catch (err) {
+      logger.warn("Database error logging PNR request", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   async savePnrSnapshot(params: {
@@ -221,40 +235,53 @@ export class DrizzlePostgresRepository implements RefundRepository {
     const ttlSeconds = params.ttlSeconds ?? 3600;
     const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
 
-    await this.db
-      .insert(pnrSnapshots)
-      .values({
-        id: crypto.randomUUID(),
-        pnrHash: params.pnrHash,
-        canonicalJson: params.canonicalJson,
-        provider: params.provider,
-        fetchedAt: now,
-        expiresAt,
-      })
-      .onConflictDoUpdate({
-        target: pnrSnapshots.id,
-        set: {
+    try {
+      await this.db
+        .insert(pnrSnapshots)
+        .values({
+          id: crypto.randomUUID(),
+          pnrHash: params.pnrHash,
           canonicalJson: params.canonicalJson,
           provider: params.provider,
           fetchedAt: now,
           expiresAt,
-        },
+        })
+        .onConflictDoUpdate({
+          target: pnrSnapshots.id,
+          set: {
+            canonicalJson: params.canonicalJson,
+            provider: params.provider,
+            fetchedAt: now,
+            expiresAt,
+          },
+        });
+    } catch (err) {
+      logger.warn("Database error saving PNR snapshot", {
+        error: err instanceof Error ? err.message : String(err),
       });
+    }
   }
 
   async getPnrSnapshot(pnrHash: string): Promise<{ canonicalJson: CanonicalPnr; provider: string } | null> {
-    const rows = await this.db
-      .select()
-      .from(pnrSnapshots)
-      .where(and(eq(pnrSnapshots.pnrHash, pnrHash), lte(pnrSnapshots.expiresAt, new Date())))
-      .limit(1);
+    try {
+      const rows = await this.db
+        .select()
+        .from(pnrSnapshots)
+        .where(and(eq(pnrSnapshots.pnrHash, pnrHash), gt(pnrSnapshots.expiresAt, new Date())))
+        .limit(1);
 
-    if (rows.length === 0) return null;
+      if (rows.length === 0) return null;
 
-    return {
-      canonicalJson: rows[0].canonicalJson as CanonicalPnr,
-      provider: rows[0].provider,
-    };
+      return {
+        canonicalJson: rows[0].canonicalJson as CanonicalPnr,
+        provider: rows[0].provider,
+      };
+    } catch (err) {
+      logger.warn("Database error reading PNR snapshot, continuing without cache", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
   }
 
   async saveCalculation(params: {
@@ -266,16 +293,22 @@ export class DrizzlePostgresRepository implements RefundRepository {
     result: RefundResult;
   }): Promise<{ id: string }> {
     const id = crypto.randomUUID();
-    await this.db.insert(refundCalculations).values({
-      id,
-      requestId: params.requestId,
-      pnrHash: params.pnrHash,
-      inputSnapshot: params.inputSnapshot,
-      ruleVersion: params.ruleVersion,
-      provider: params.provider,
-      result: params.result,
-      timestamp: new Date(),
-    });
+    try {
+      await this.db.insert(refundCalculations).values({
+        id,
+        requestId: params.requestId,
+        pnrHash: params.pnrHash,
+        inputSnapshot: params.inputSnapshot,
+        ruleVersion: params.ruleVersion,
+        provider: params.provider,
+        result: params.result,
+        timestamp: new Date(),
+      });
+    } catch (err) {
+      logger.warn("Database error saving calculation, proceeding with generated ID", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     return { id };
   }
 

@@ -27,10 +27,16 @@ export default function Home() {
 
       if (!lookupRes.ok) {
         const data = await lookupRes.json().catch(() => null);
-        throw new Error(
-          data?.error ??
-            "We couldn't find a ticket with this PNR. Please double-check the number and try again."
-        );
+        const fallbackMsg =
+          lookupRes.status === 504
+            ? "The railway inquiry service took too long to respond. Please try again shortly."
+            : lookupRes.status === 503
+            ? "The railway inquiry service is temporarily unavailable. Please try again in a few minutes."
+            : lookupRes.status === 404
+            ? "We couldn't find a ticket with this PNR. Please double-check the number and try again."
+            : "Something went wrong while looking up your PNR. Please try again in a moment.";
+
+        throw new Error(data?.error ?? fallbackMsg);
       }
 
       const { pnrData } = await lookupRes.json();

@@ -7,6 +7,9 @@ import { hashPnr } from "@/app/lib/crypto";
 import { logger } from "@/app/lib/logger";
 import { getRepository } from "@/app/lib/db/repository";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30; // 30-second execution window for external railway PRS APIs
+
 const PnrLookupSchema = z.object({
   pnr: z
     .string()
@@ -86,39 +89,55 @@ export async function POST(request: NextRequest) {
     });
 
     // Check short-lived cached snapshot before querying provider
-    const cached = await repository.getPnrSnapshot(pnrHash);
-    if (cached) {
-      reqLogger.info("Returning cached PNR snapshot", { pnrHash });
-      await repository.logPnrRequest({
-        requestId,
-        pnrHash,
-        status: "CACHE_HIT",
-        latencyMs: Date.now() - startTime,
-      });
+    try {
+      const cached = await repository.getPnrSnapshot(pnrHash);
+      if (cached) {
+        reqLogger.info("Returning cached PNR snapshot", { pnrHash });
+        await repository
+          .logPnrRequest({
+            requestId,
+            pnrHash,
+            status: "CACHE_HIT",
+            latencyMs: Date.now() - startTime,
+          })
+          .catch(() => null);
 
-      const response = NextResponse.json({ pnrData: cached.canonicalJson }, { status: 200 });
-      response.headers.set("x-request-id", requestId);
-      return response;
+        const response = NextResponse.json({ pnrData: cached.canonicalJson }, { status: 200 });
+        response.headers.set("x-request-id", requestId);
+        return response;
+      }
+    } catch (cacheErr) {
+      reqLogger.warn("Cache snapshot read skipped", {
+        error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr),
+      });
     }
 
     const provider = getRobustProvider();
     const pnrData = await provider.getPnrStatus(pnr, requestId);
 
-    // Persist snapshot with short TTL (minimal data retention)
-    await repository.savePnrSnapshot({
-      pnrHash,
-      canonicalJson: pnrData,
-      provider: providerInstance?.name || "factory-provider",
-      ttlSeconds: 1800, // 30 minutes
-    });
+    // Persist snapshot with short TTL (minimal data retention) - non-blocking
+    await repository
+      .savePnrSnapshot({
+        pnrHash,
+        canonicalJson: pnrData,
+        provider: providerInstance?.name || "factory-provider",
+        ttlSeconds: 1800, // 30 minutes
+      })
+      .catch((saveErr) => {
+        reqLogger.warn("Snapshot persistence non-fatal error", {
+          error: saveErr instanceof Error ? saveErr.message : String(saveErr),
+        });
+      });
 
-    // Persist request record with salted hash only
-    await repository.logPnrRequest({
-      requestId,
-      pnrHash,
-      status: "SUCCESS",
-      latencyMs: Date.now() - startTime,
-    });
+    // Persist request record with salted hash only - non-blocking
+    await repository
+      .logPnrRequest({
+        requestId,
+        pnrHash,
+        status: "SUCCESS",
+        latencyMs: Date.now() - startTime,
+      })
+      .catch(() => null);
 
     const response = NextResponse.json({ pnrData }, { status: 200 });
     response.headers.set("x-request-id", requestId);
@@ -134,12 +153,14 @@ export async function POST(request: NextRequest) {
             ? "TIMEOUT"
             : "ERROR";
 
-      await repository.logPnrRequest({
-        requestId,
-        pnrHash,
-        status,
-        latencyMs,
-      }).catch(() => null);
+      await repository
+        .logPnrRequest({
+          requestId,
+          pnrHash,
+          status,
+          latencyMs,
+        })
+        .catch(() => null);
     }
 
     if (error instanceof ProviderError) {
@@ -182,6 +203,38 @@ export async function POST(request: NextRequest) {
           { status: 503, headers: { "x-request-id": requestId } }
         );
       }
+
+      if (error.code === "INTERNAL") {
+        const errorMsg = error.message || "";
+        const isConfigIssue =
+          errorMsg.includes("RAPIDAPI_KEY") ||
+          errorMsg.includes("Not authorized") ||
+          errorMsg.includes("subscribe") ||
+          errorMsg.includes("MockPnrProvider cannot be used");
+
+        return NextResponse.json(
+          {
+            error: isConfigIssue
+              ? "Railway inquiry provider is not configured or subscription is inactive. Please check server settings."
+              : "Something went wrong while looking up your PNR. Please try again in a moment.",
+          },
+          { status: 502, headers: { "x-request-id": requestId } }
+        );
+      }
+    }
+
+    const rawErrorMsg = error instanceof Error ? error.message : String(error);
+    if (
+      rawErrorMsg.includes("RAPIDAPI_KEY") ||
+      rawErrorMsg.includes("MockPnrProvider cannot be used")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Railway inquiry service is not configured. Please add RAPIDAPI_KEY in your Vercel Environment Variables or set ALLOW_MOCK_PROVIDER=true.",
+        },
+        { status: 500, headers: { "x-request-id": requestId } }
+      );
     }
 
     reqLogger.error("PNR lookup failed with unhandled exception", {

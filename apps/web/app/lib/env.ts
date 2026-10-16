@@ -12,8 +12,8 @@ const EnvSchema = z.object({
     ),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().positive().default(10),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().positive().default(60000),
-  PROVIDER_TIMEOUT_MS: z.coerce.number().positive().default(5000),
-  PROVIDER_MAX_RETRIES: z.coerce.number().nonnegative().default(2),
+  PROVIDER_TIMEOUT_MS: z.coerce.number().positive().default(15000),
+  PROVIDER_MAX_RETRIES: z.coerce.number().nonnegative().default(1),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   ALLOW_MOCK_PROVIDER: z
